@@ -44,6 +44,9 @@ st.markdown("""
         margin: 0.5rem 0;
         font-family: monospace;
     }
+    .stButton>button {
+        width: 100%;
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -244,6 +247,7 @@ def main():
                     [55, 40, 50],
                     [50, 55, 45]
                 ])
+                rows, cols = 3, 3
             elif example_choice == "Medium Hospital (4x4)":
                 example_matrix = np.array([
                     [30, 25, 40, 35],
@@ -251,6 +255,7 @@ def main():
                     [40, 35, 45, 30],
                     [25, 30, 35, 40]
                 ])
+                rows, cols = 4, 4
             else:  # Large Hospital (5x5)
                 example_matrix = np.array([
                     [60, 75, 80, 65, 70],
@@ -259,8 +264,8 @@ def main():
                     [65, 80, 70, 60, 75],
                     [75, 60, 65, 70, 80]
                 ])
+                rows, cols = 5, 5
             
-            rows, cols = example_matrix.shape
             st.write(f"Example: {rows} doctors × {cols} rooms")
             st.dataframe(example_matrix)
             
@@ -275,21 +280,29 @@ def main():
     # Main content area
     col1, col2 = st.columns([1, 1])
     
+    # Initialize variables
+    user_matrix = None
+    rows, cols = 0, 0
+    
     with col1:
         st.header("📝 Input Surgery Times")
         
         if input_method == "Manual Entry":
-            rows = st.number_input("Number of Doctors", min_value=1, max_value=10, value=3, step=1)
-            cols = st.number_input("Number of Operation Rooms", min_value=1, max_value=10, value=3, step=1)
+            rows_input = st.number_input("Number of Doctors", min_value=1, max_value=10, value=3, step=1, key="rows_input")
+            cols_input = st.number_input("Number of Operation Rooms", min_value=1, max_value=10, value=3, step=1, key="cols_input")
+            
+            # Convert to integers
+            rows = int(rows_input)
+            cols = int(cols_input)
             
             st.subheader("Enter Surgery Time Matrix (in minutes)")
             
             # Create input matrix
             input_data = []
-            for i in range(int(rows)):
-                cols_list = st.columns(int(cols))
+            for i in range(rows):
+                cols_list = st.columns(cols)
                 row_data = []
-                for j in range(int(cols)):
+                for j in range(cols):
                     with cols_list[j]:
                         value = st.number_input(
                             f"D{i+1}→R{j+1}",
@@ -321,108 +334,114 @@ def main():
                 return
         else:  # Example Data
             user_matrix = example_matrix
-            rows, cols = user_matrix.shape
+            # rows, cols are already set above
         
-        # Display input matrix
-        st.subheader("📊 Input Surgery Time Matrix")
-        st.dataframe(
-            pd.DataFrame(
-                user_matrix,
-                index=[f"Doctor {i+1}" for i in range(rows)],
-                columns=[f"Room {j+1}" for j in range(cols)]
-            ),
-            use_container_width=True
-        )
-        
-        # Calculate statistics
-        st.subheader("📈 Matrix Statistics")
-        col_stat1, col_stat2, col_stat3 = st.columns(3)
-        with col_stat1:
-            st.metric("Minimum Time", f"{user_matrix.min():.1f} min")
-        with col_stat2:
-            st.metric("Maximum Time", f"{user_matrix.max():.1f} min")
-        with col_stat3:
-            st.metric("Average Time", f"{user_matrix.mean():.1f} min")
+        # Display input matrix if it exists
+        if user_matrix is not None:
+            # Display input matrix
+            st.subheader("📊 Input Surgery Time Matrix")
+            st.dataframe(
+                pd.DataFrame(
+                    user_matrix,
+                    index=[f"Doctor {i+1}" for i in range(rows)],
+                    columns=[f"Room {j+1}" for j in range(cols)]
+                ),
+                use_container_width=True
+            )
+            
+            # Calculate statistics
+            st.subheader("📈 Matrix Statistics")
+            col_stat1, col_stat2, col_stat3 = st.columns(3)
+            with col_stat1:
+                st.metric("Minimum Time", f"{user_matrix.min():.1f} min")
+            with col_stat2:
+                st.metric("Maximum Time", f"{user_matrix.max():.1f} min")
+            with col_stat3:
+                st.metric("Average Time", f"{user_matrix.mean():.1f} min")
     
     with col2:
         st.header("⚡ Run Optimization")
         
-        if st.button("🚀 Find Optimal Assignment", type="primary", use_container_width=True):
-            with st.spinner("Running Munkres algorithm..."):
-                # Balance the matrix if not square
-                n = max(rows, cols)
-                balanced = np.zeros((n, n))
-                balanced[:rows, :cols] = user_matrix
-                
-                if rows != cols:
-                    st.warning(f"⚠️ Matrix balanced to {n}×{n} by adding dummy rows/columns with zero time")
-                
-                # Run algorithm
-                assignment, steps_log = munkres_verbose(balanced)
-                
-                # Display results
-                st.success("✅ Optimal Assignment Found!")
-                
-                # Create results container
-                result_container = st.container()
-                
-                with result_container:
-                    st.markdown("<div class='result-box'>", unsafe_allow_html=True)
-                    st.subheader("🎯 Optimal Assignment")
+        if user_matrix is not None:
+            if st.button("🚀 Find Optimal Assignment", type="primary", use_container_width=True):
+                with st.spinner("Running Munkres algorithm..."):
+                    # Balance the matrix if not square
+                    n = max(rows, cols)
+                    balanced = np.zeros((n, n))
+                    balanced[:rows, :cols] = user_matrix
                     
-                    total_time = 0
-                    results_data = []
+                    if rows != cols:
+                        st.warning(f"⚠️ Matrix balanced to {n}×{n} by adding dummy rows/columns with zero time")
                     
-                    for r, c in assignment:
-                        if r < rows and c < cols:
-                            time_val = user_matrix[r, c]
-                            total_time += time_val
-                            results_data.append({
-                                "Doctor": f"D{r+1}",
-                                "Room": f"R{c+1}",
-                                "Surgery Time (min)": time_val
-                            })
+                    # Run algorithm
+                    assignment, steps_log = munkres_verbose(balanced)
                     
-                    # Display as table
-                    results_df = pd.DataFrame(results_data)
-                    st.dataframe(results_df, use_container_width=True, hide_index=True)
+                    # Display results
+                    st.success("✅ Optimal Assignment Found!")
                     
-                    # Display total time
-                    st.metric("Total Surgery Time", f"{total_time:.1f} minutes")
+                    # Create results container
+                    result_container = st.container()
                     
-                    st.markdown("</div>", unsafe_allow_html=True)
-                    
-                    # Display algorithm steps
-                    st.subheader("🔍 Algorithm Steps")
-                    
-                    with st.expander("View Detailed Steps", expanded=False):
-                        steps_text = "\n".join(steps_log)
-                        st.markdown(steps_text)
-                    
-                    # Visual representation
-                    st.subheader("👥 Assignment Visualization")
-                    
-                    # Create a simple visualization
-                    viz_cols = st.columns(min(5, len(results_data)))
-                    for idx, (col, (r, c)) in enumerate(zip(viz_cols, assignment)):
-                        if r < rows and c < cols:
-                            with col:
-                                st.markdown(f"""
-                                <div style='text-align: center; padding: 10px; border: 2px solid #3B82F6; border-radius: 10px;'>
-                                    <h3>👨‍⚕️ D{r+1}</h3>
-                                    <p>→</p>
-                                    <h3>🏥 R{c+1}</h3>
-                                    <p><strong>{user_matrix[r, c]} min</strong></p>
-                                </div>
-                                """, unsafe_allow_html=True)
-                    
-                    # Download results
-                    st.download_button(
-                        label="📥 Download Results as CSV",
-                        data=results_df.to_csv(index=False),
-                        file_name="surgery_assignment.csv",
-                        mime="text/csv"
-                    )
+                    with result_container:
+                        st.markdown("<div class='result-box'>", unsafe_allow_html=True)
+                        st.subheader("🎯 Optimal Assignment")
+                        
+                        total_time = 0
+                        results_data = []
+                        
+                        for r, c in assignment:
+                            if r < rows and c < cols:
+                                time_val = user_matrix[r, c]
+                                total_time += time_val
+                                results_data.append({
+                                    "Doctor": f"D{r+1}",
+                                    "Room": f"R{c+1}",
+                                    "Surgery Time (min)": time_val
+                                })
+                        
+                        # Display as table
+                        results_df = pd.DataFrame(results_data)
+                        st.dataframe(results_df, use_container_width=True, hide_index=True)
+                        
+                        # Display total time
+                        st.metric("Total Surgery Time", f"{total_time:.1f} minutes")
+                        
+                        st.markdown("</div>", unsafe_allow_html=True)
+                        
+                        # Display algorithm steps
+                        st.subheader("🔍 Algorithm Steps")
+                        
+                        with st.expander("View Detailed Steps", expanded=False):
+                            steps_text = "\n".join(steps_log)
+                            st.markdown(steps_text)
+                        
+                        # Visual representation
+                        st.subheader("👥 Assignment Visualization")
+                        
+                        # Create a simple visualization
+                        if results_data:
+                            viz_cols = st.columns(min(5, len(results_data)))
+                            for idx, (col, result) in enumerate(zip(viz_cols, results_data)):
+                                with col:
+                                    st.markdown(f"""
+                                    <div style='text-align: center; padding: 10px; border: 2px solid #3B82F6; border-radius: 10px; background-color: #f0f9ff;'>
+                                        <h4>👨‍⚕️ {result['Doctor']}</h4>
+                                        <p style='font-size: 20px; margin: 5px;'>→</p>
+                                        <h4>🏥 {result['Room']}</h4>
+                                        <p style='font-size: 18px; font-weight: bold; margin-top: 10px;'>{result['Surgery Time (min)']} min</p>
+                                    </div>
+                                    """, unsafe_allow_html=True)
+                        
+                        # Download results
+                        if not results_df.empty:
+                            st.download_button(
+                                label="📥 Download Results as CSV",
+                                data=results_df.to_csv(index=False),
+                                file_name="surgery_assignment.csv",
+                                mime="text/csv"
+                            )
+        else:
+            st.info("Please enter data in the left column first.")
         
         # Information section
         st.markdown("---")
