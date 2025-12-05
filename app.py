@@ -1,349 +1,605 @@
-import numpy as np
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hungarian Algorithm - Delivery Assignment</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body {
+            background-color: #f8f9fa;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px 0;
+            margin-bottom: 30px;
+            border-radius: 0 0 20px 20px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+        .card {
+            border: none;
+            border-radius: 15px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.08);
+            margin-bottom: 20px;
+        }
+        .card-header {
+            background: linear-gradient(to right, #6a11cb 0%, #2575fc 100%);
+            color: white;
+            border-radius: 15px 15px 0 0 !important;
+            padding: 15px 20px;
+            font-weight: 600;
+        }
+        .matrix-input {
+            width: 80px;
+            text-align: center;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            padding: 8px;
+            font-weight: 500;
+            transition: all 0.3s;
+        }
+        .matrix-input:focus {
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+            outline: none;
+        }
+        .btn-custom {
+            background: linear-gradient(to right, #667eea, #764ba2);
+            color: white;
+            border: none;
+            padding: 10px 25px;
+            border-radius: 8px;
+            font-weight: 600;
+            transition: all 0.3s;
+        }
+        .btn-custom:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+            color: white;
+        }
+        .step-box {
+            background: white;
+            border-left: 5px solid #667eea;
+            padding: 15px;
+            margin-bottom: 15px;
+            border-radius: 8px;
+            box-shadow: 0 3px 10px rgba(0,0,0,0.05);
+        }
+        .assignment-item {
+            background: linear-gradient(to right, #d4fc79, #96e6a1);
+            padding: 12px 15px;
+            margin: 8px 0;
+            border-radius: 8px;
+            font-weight: 600;
+        }
+        .highlight {
+            background-color: #fff3cd !important;
+            font-weight: bold;
+        }
+        .starred-cell {
+            background-color: #c3e6cb !important;
+            color: #155724;
+            font-weight: bold;
+            position: relative;
+        }
+        .starred-cell::after {
+            content: "★";
+            position: absolute;
+            top: 2px;
+            right: 2px;
+            font-size: 12px;
+        }
+        .primed-cell {
+            background-color: #ffeeba !important;
+            color: #856404;
+            font-weight: bold;
+        }
+        .covered-row {
+            background-color: #f8d7da !important;
+            opacity: 0.8;
+        }
+        .covered-col {
+            background-color: #d1ecf1 !important;
+            opacity: 0.8;
+        }
+        .result-card {
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            border: 2px solid #667eea;
+        }
+        .loading {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 40px;
+        }
+        .spinner-custom {
+            width: 3rem;
+            height: 3rem;
+            border-width: 3px;
+        }
+        .matrix-table {
+            width: auto;
+            margin: 0 auto;
+            border-collapse: separate;
+            border-spacing: 5px;
+        }
+        .matrix-table th {
+            background-color: #f1f3f5;
+            padding: 10px 15px;
+            text-align: center;
+            font-weight: 600;
+        }
+        .matrix-table td {
+            padding: 12px;
+            text-align: center;
+            min-width: 80px;
+            border: 2px solid #e9ecef;
+            border-radius: 8px;
+            background-color: white;
+            transition: all 0.3s;
+        }
+        .cost-badge {
+            background: linear-gradient(to right, #ff7e5f, #feb47b);
+            color: white;
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-weight: 600;
+        }
+    </style>
+</head>
+<body>
+    <!-- Header -->
+    <div class="header">
+        <div class="container">
+            <div class="row align-items-center">
+                <div class="col-md-8">
+                    <h1 class="display-5 mb-3">🚚 Hungarian Algorithm Solver</h1>
+                    <p class="lead mb-0">Optimal Delivery Driver → Route Assignment System</p>
+                    <p class="mb-0">Minimize total delivery cost using the Hungarian Algorithm</p>
+                </div>
+                <div class="col-md-4 text-end">
+                    <div class="bg-white rounded-pill d-inline-block p-2">
+                        <span class="text-primary fw-bold">Total Cost Minimization</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
 
-def get_user_input():
-    """Get matrix input from user via terminal"""
-    print("=" * 60)
-    print("HUNGARIAN ALGORITHM - OPTIMAL DELIVERY ASSIGNMENT")
-    print("=" * 60)
-    
-    try:
-        rows = int(input("\nEnter number of Delivery Drivers: "))
-        cols = int(input("Enter number of Delivery Routes: "))
-        
-        print(f"\nEnter delivery cost matrix row by row ({rows} x {cols}):")
-        print("(Enter costs separated by space)")
-        print("-" * 40)
-        
-        user_matrix = []
-        for i in range(rows):
-            while True:
-                try:
-                    row_input = input(f"Driver {i+1} costs: ").strip()
-                    row = list(map(float, row_input.split()))
-                    
-                    if len(row) != cols:
-                        print(f"Error: Expected {cols} costs, got {len(row)}. Please enter again.")
-                        continue
-                    
-                    if any(cost < 0 for cost in row):
-                        print("Error: Costs cannot be negative. Please enter again.")
-                        continue
-                    
-                    user_matrix.append(row)
-                    break
-                except ValueError:
-                    print("Error: Please enter valid numbers separated by spaces.")
-        
-        return np.array(user_matrix), rows, cols
-        
-    except KeyboardInterrupt:
-        print("\n\nProgram terminated by user.")
-        exit()
-    except Exception as e:
-        print(f"Error: {e}")
-        exit()
-
-def munkres_verbose(cost, original_rows, original_cols):
-    """Hungarian Algorithm implementation with detailed output"""
-    matrix = cost.copy().astype(float)
-    n = matrix.shape[0]
-
-    print("\n" + "="*60)
-    print("STEP 1: INITIAL DELIVERY COST MATRIX")
-    print("="*60)
-    print_matrix(matrix, original_rows, original_cols)
-
-    # Step 1: Row reduction
-    print("\n" + "="*60)
-    print("STEP 2: ROW REDUCTION")
-    print("="*60)
-    print("Subtract minimum value from each row:")
-    row_mins = []
-    for i in range(n):
-        mv = matrix[i].min()
-        row_mins.append(mv)
-        print(f"  Row {i+1} min = {mv}")
-        matrix[i] -= mv
-    
-    print("\nMatrix after row reduction:")
-    print_matrix(matrix, original_rows, original_cols)
-
-    # Step 2: Column reduction
-    print("\n" + "="*60)
-    print("STEP 3: COLUMN REDUCTION")
-    print("="*60)
-    print("Subtract minimum value from each column:")
-    col_mins = []
-    for j in range(n):
-        mv = matrix[:, j].min()
-        col_mins.append(mv)
-        print(f"  Column {j+1} min = {mv}")
-        matrix[:, j] -= mv
-    
-    print("\nMatrix after column reduction:")
-    print_matrix(matrix, original_rows, original_cols)
-
-    # Prepare structures
-    starred = np.zeros((n, n), dtype=bool)
-    primed = np.zeros((n, n), dtype=bool)
-    row_cov = np.zeros(n, dtype=bool)
-    col_cov = np.zeros(n, dtype=bool)
-
-    # Step: Star initial zeros
-    print("\n" + "="*60)
-    print("STEP 4: INITIAL ZERO ASSIGNMENT (STARRING)")
-    print("="*60)
-    print("Star independent zeros (one per row and column):")
-    
-    for i in range(n):
-        for j in range(n):
-            if matrix[i, j] == 0 and not row_cov[i] and not col_cov[j]:
-                starred[i, j] = True
-                row_cov[i] = True
-                col_cov[j] = True
-                print(f"  Starred zero at (Driver {i+1}, Route {j+1})")
-    
-    row_cov[:] = False
-    col_cov[:] = False
-
-    print("\nInitial starred zeros matrix:")
-    print_starred_matrix(starred, original_rows, original_cols)
-
-    # Cover columns that have a starred zero
-    for j in range(n):
-        if starred[:, j].any():
-            col_cov[j] = True
-    
-    print("\nCovered columns (with starred zeros):", 
-          [f"Route {j+1}" for j in range(n) if col_cov[j]])
-
-    iteration = 1
-    while True:
-        print(f"\n" + "="*60)
-        print(f"ITERATION {iteration}")
-        print("="*60)
-
-        if col_cov.sum() == n:
-            print("✓ All columns covered — Optimal assignment found!")
-            break
-
-        # Find uncovered zero
-        z = None
-        for i in range(n):
-            if not row_cov[i]:
-                for j in range(n):
-                    if not col_cov[j] and matrix[i, j] == 0:
-                        z = (i, j)
-                        break
-            if z:
-                break
-
-        while z is not None:
-            i, j = z
-            primed[i, j] = True
-            print(f"  Primed zero at (Driver {i+1}, Route {j+1})")
-
-            star_col = np.where(starred[i])[0]
-
-            if star_col.size == 0:
-                # Augmenting path found
-                print(f"  No starred zero in row {i+1} → Found augmenting path")
-                path = [(i, j)]
+    <div class="container">
+        <div class="row">
+            <!-- Input Section -->
+            <div class="col-lg-6">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="mb-0">📝 Input Delivery Cost Matrix</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row mb-4">
+                            <div class="col-md-6">
+                                <label class="form-label fw-bold">Number of Delivery Drivers</label>
+                                <input type="number" id="rows" class="form-control" min="1" max="10" value="4">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label fw-bold">Number of Delivery Routes</label>
+                                <input type="number" id="cols" class="form-control" min="1" max="10" value="4">
+                            </div>
+                        </div>
+                        
+                        <div class="mb-4">
+                            <label class="form-label fw-bold">Enter Delivery Costs (Rs.)</label>
+                            <p class="text-muted small mb-2">Enter cost for each Driver → Route combination</p>
+                            <div id="matrix-container" class="table-responsive"></div>
+                        </div>
+                        
+                        <div class="d-flex flex-wrap gap-2 mb-3">
+                            <button class="btn btn-custom" onclick="updateMatrix()">
+                                <i class="fas fa-sync-alt me-2"></i>Create Matrix
+                            </button>
+                            <button class="btn btn-success" onclick="loadSample()">
+                                <i class="fas fa-vial me-2"></i>Load Sample
+                            </button>
+                            <button class="btn btn-outline-danger" onclick="clearMatrix()">
+                                <i class="fas fa-eraser me-2"></i>Clear All
+                            </button>
+                        </div>
+                        
+                        <div class="d-grid">
+                            <button class="btn btn-custom btn-lg" onclick="calculate()">
+                                <i class="fas fa-calculator me-2"></i>Calculate Optimal Assignment
+                            </button>
+                        </div>
+                    </div>
+                </div>
                 
-                while True:
-                    starred_row = np.where(starred[:, path[-1][1]])[0]
-                    if starred_row.size == 0:
-                        break
-                    starred_row = int(starred_row[0])
-                    path.append((starred_row, path[-1][1]))
+                <!-- Sample Data Cards -->
+                <div class="card mt-4">
+                    <div class="card-header">
+                        <h6 class="mb-0">📊 Sample Data</h6>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-4">
+                                <button class="btn btn-outline-primary w-100 mb-2" onclick="loadSample1()">Sample 1</button>
+                            </div>
+                            <div class="col-md-4">
+                                <button class="btn btn-outline-primary w-100 mb-2" onclick="loadSample2()">Sample 2</button>
+                            </div>
+                            <div class="col-md-4">
+                                <button class="btn btn-outline-primary w-100 mb-2" onclick="loadSample3()">Sample 3</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
 
-                    prime_col = np.where(primed[path[-1][0]])[0]
-                    prime_col = int(prime_col[0])
-                    path.append((path[-1][0], prime_col))
-
-                print("  Augmenting path:", 
-                      " → ".join([f"(D{r+1},R{c+1})" for r, c in path]))
-
-                # Toggle stars along path
-                for r, c in path:
-                    starred[r, c] = not starred[r, c]
-
-                primed[:, :] = False
-                row_cov[:] = False
-                col_cov[:] = False
-
-                # Update column covers
-                for col in range(n):
-                    if starred[:, col].any():
-                        col_cov[col] = True
-
-                print("  Updated starred zeros:")
-                print_starred_matrix(starred, original_rows, original_cols)
-                break
-
-            else:
-                sc = int(star_col[0])
-                print(f"  Found starred zero at (Driver {i+1}, Route {sc+1})")
-                print(f"  → Cover row {i+1}, uncover column {sc+1}")
-                row_cov[i] = True
-                col_cov[sc] = False
+            <!-- Results Section -->
+            <div class="col-lg-6">
+                <div class="card result-card">
+                    <div class="card-header">
+                        <h5 class="mb-0">📈 Results & Assignment</h5>
+                    </div>
+                    <div class="card-body">
+                        <!-- Loading Indicator -->
+                        <div id="loading" class="loading" style="display: none;">
+                            <div class="spinner-border spinner-custom text-primary" role="status">
+                                <span class="visually-hidden">Loading...</span>
+                            </div>
+                            <p class="mt-3 fw-bold">Calculating optimal assignment...</p>
+                            <p class="text-muted small">Running Hungarian Algorithm step by step</p>
+                        </div>
+                        
+                        <!-- Results Container -->
+                        <div id="results" style="display: none;"></div>
+                        
+                        <!-- Error Message -->
+                        <div id="error" class="alert alert-danger" style="display: none;"></div>
+                        
+                        <!-- Initial Placeholder -->
+                        <div id="initial-placeholder">
+                            <div class="text-center text-muted py-5">
+                                <i class="fas fa-chart-line fa-3x mb-3" style="color: #ccc;"></i>
+                                <h5>Results will appear here</h5>
+                                <p class="mb-0">Enter your delivery cost matrix and click "Calculate"</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
                 
-                # Find next uncovered zero
-                z = None
-                for ii in range(n):
-                    if not row_cov[ii]:
-                        for jj in range(n):
-                            if not col_cov[jj] and matrix[ii, jj] == 0:
-                                z = (ii, jj)
-                                break
-                    if z:
-                        break
+                <!-- Steps Section -->
+                <div class="card mt-4">
+                    <div class="card-header">
+                        <h5 class="mb-0">🔍 Algorithm Steps</h5>
+                    </div>
+                    <div class="card-body">
+                        <div id="steps-container">
+                            <p class="text-muted text-center py-3">
+                                Step-by-step solution will appear here after calculation
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
 
-        if z is None:
-            # Adjust matrix
-            print("  No uncovered zeros found → Adjusting matrix")
+        <!-- Footer -->
+        <div class="text-center mt-5 mb-4">
+            <p class="text-muted">
+                Hungarian Algorithm Implementation | Delivery Optimization System
+            </p>
+        </div>
+    </div>
+
+    <!-- Font Awesome for Icons -->
+    <script src="https://kit.fontawesome.com/a076d05399.js" crossorigin="anonymous"></script>
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+
+    <script>
+        // Initialize matrix on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            updateMatrix();
+        });
+
+        function updateMatrix() {
+            const rows = parseInt(document.getElementById('rows').value);
+            const cols = parseInt(document.getElementById('cols').value);
+            const container = document.getElementById('matrix-container');
             
-            min_uncovered = float('inf')
-            for ii in range(n):
-                if not row_cov[ii]:
-                    for jj in range(n):
-                        if not col_cov[jj] and matrix[ii, jj] < min_uncovered:
-                            min_uncovered = matrix[ii, jj]
-
-            if min_uncovered == float('inf'):
-                min_uncovered = 0
-
-            print(f"  Minimum uncovered value: {min_uncovered}")
-            print("  Adjusting matrix:")
-            print(f"    - Subtract {min_uncovered} from uncovered cells")
-            print(f"    - Add {min_uncovered} to twice-covered cells")
-
-            for ii in range(n):
-                for jj in range(n):
-                    if not row_cov[ii] and not col_cov[jj]:
-                        matrix[ii, jj] -= min_uncovered
-                    elif row_cov[ii] and col_cov[jj]:
-                        matrix[ii, jj] += min_uncovered
-
-            print("\n  Matrix after adjustment:")
-            print_matrix(matrix, original_rows, original_cols)
+            if (rows > 10 || cols > 10) {
+                alert('Maximum size is 10x10 for better performance.');
+                return;
+            }
             
-            # Reset covers for next iteration
-            row_cov[:] = False
-            for j in range(n):
-                col_cov[j] = starred[:, j].any()
+            let html = '<table class="matrix-table"><thead><tr><th></th>';
+            
+            // Column headers
+            for (let j = 0; j < cols; j++) {
+                html += `<th>Route ${j+1}</th>`;
+            }
+            html += '</tr></thead><tbody>';
+            
+            // Rows with inputs
+            for (let i = 0; i < rows; i++) {
+                html += `<tr><th class="bg-light">Driver ${i+1}</th>`;
+                for (let j = 0; j < cols; j++) {
+                    html += `<td>
+                        <input type="number" class="matrix-input" 
+                               id="cell-${i}-${j}" value="${Math.floor(Math.random() * 100) + 1}" 
+                               min="0" step="0.01" placeholder="0.00">
+                    </td>`;
+                }
+                html += '</tr>';
+            }
+            html += '</tbody></table>';
+            
+            container.innerHTML = html;
+        }
 
-        iteration += 1
+        function clearMatrix() {
+            const inputs = document.querySelectorAll('.matrix-input');
+            inputs.forEach(input => {
+                input.value = '';
+            });
+        }
 
-    # Get final assignment
-    assignment = []
-    for i in range(n):
-        j_idx = np.where(starred[i])[0]
-        if j_idx.size > 0:
-            j = int(j_idx[0])
-            if i < original_rows and j < original_cols:
-                assignment.append((i, j))
+        function loadSample1() {
+            fetch('/api/sample')
+                .then(response => response.json())
+                .then(data => {
+                    loadMatrixData(data.sample);
+                });
+        }
 
-    return assignment
+        function loadSample2() {
+            fetch('/api/sample2')
+                .then(response => response.json())
+                .then(data => {
+                    loadMatrixData(data.sample);
+                });
+        }
 
-def print_matrix(matrix, rows, cols, title=None):
-    """Print matrix with formatting"""
-    if title:
-        print(title)
-    
-    n = matrix.shape[0]
-    for i in range(n):
-        row_str = ""
-        for j in range(n):
-            if i < rows and j < cols:
-                value = matrix[i, j]
-                if value == 0:
-                    row_str += f" [{value:5.1f}]"
-                else:
-                    row_str += f"  {value:5.1f} "
-            else:
-                row_str += "      "
-        print(row_str)
+        function loadSample3() {
+            fetch('/api/sample3')
+                .then(response => response.json())
+                .then(data => {
+                    loadMatrixData(data.sample);
+                });
+        }
 
-def print_starred_matrix(starred, rows, cols):
-    """Print matrix showing starred zeros"""
-    n = starred.shape[0]
-    for i in range(n):
-        row_str = ""
-        for j in range(n):
-            if i < rows and j < cols:
-                if starred[i, j]:
-                    row_str += "  [★]  "
-                else:
-                    row_str += "   .   "
-            else:
-                row_str += "       "
-        print(row_str)
+        function loadSample() {
+            loadSample1(); // Default to sample 1
+        }
 
-def main():
-    """Main function"""
-    print("\n" + "★" * 60)
-    print("WELCOME TO HUNGARIAN ALGORITHM SOLVER")
-    print("Optimal Delivery Driver-Route Assignment System")
-    print("★" * 60)
-    
-    # Get user input
-    user_matrix, original_rows, original_cols = get_user_input()
-    
-    print("\n" + "="*60)
-    print("PROCESSING OPTIMAL ASSIGNMENT...")
-    print("="*60)
-    
-    # Balance matrix if needed
-    n = max(original_rows, original_cols)
-    if original_rows != original_cols:
-        print(f"\nNote: Matrix is {original_rows}x{original_cols}")
-        print(f"Balancing to {n}x{n} by adding dummy rows/columns with zero cost")
-    
-    balanced = np.zeros((n, n))
-    balanced[:original_rows, :original_cols] = user_matrix
-    
-    print(f"\nBalanced {n}x{n} matrix:")
-    print_matrix(balanced, original_rows, original_cols)
-    
-    # Run Hungarian algorithm
-    assignment = munkres_verbose(balanced, original_rows, original_cols)
-    
-    # Display final results
-    print("\n" + "="*60)
-    print("FINAL OPTIMAL ASSIGNMENT")
-    print("="*60)
-    
-    total_cost = 0
-    for r, c in assignment:
-        cost = user_matrix[r, c]
-        total_cost += cost
-        print(f"✓ Driver {r+1} → Route {c+1}  | Cost = Rs. {cost:.2f}")
-    
-    print("\n" + "-"*40)
-    print(f"TOTAL MINIMUM DELIVERY COST = Rs. {total_cost:.2f}")
-    print("="*60)
-    
-    # Ask if user wants to run again
-    while True:
-        try:
-            again = input("\nRun another assignment? (y/n): ").strip().lower()
-            if again in ['y', 'yes']:
-                print("\n" + "="*60)
-                main()
-                break
-            elif again in ['n', 'no']:
-                print("\nThank you for using Hungarian Algorithm Solver!")
-                print("Goodbye!")
-                break
-        except KeyboardInterrupt:
-            print("\n\nProgram terminated.")
-            exit()
+        function loadMatrixData(sample) {
+            const rows = sample.length;
+            const cols = sample[0].length;
+            
+            document.getElementById('rows').value = rows;
+            document.getElementById('cols').value = cols;
+            updateMatrix();
+            
+            // Set sample values
+            setTimeout(() => {
+                for (let i = 0; i < rows; i++) {
+                    for (let j = 0; j < cols; j++) {
+                        const input = document.getElementById(`cell-${i}-${j}`);
+                        if (input) {
+                            input.value = sample[i][j];
+                        }
+                    }
+                }
+            }, 100);
+        }
 
-if __name__ == "__main__":
-    try:
-        main()
-    except KeyboardInterrupt:
-        print("\n\nProgram terminated by user.")
-    except Exception as e:
-        print(f"\nError: {e}")
+        function getMatrix() {
+            const rows = parseInt(document.getElementById('rows').value);
+            const cols = parseInt(document.getElementById('cols').value);
+            const matrix = [];
+            
+            for (let i = 0; i < rows; i++) {
+                const row = [];
+                for (let j = 0; j < cols; j++) {
+                    const input = document.getElementById(`cell-${i}-${j}`);
+                    const value = parseFloat(input.value) || 0;
+                    row.push(value);
+                }
+                matrix.push(row);
+            }
+            
+            return matrix;
+        }
+
+        function calculate() {
+            const matrix = getMatrix();
+            
+            // Validate matrix
+            if (matrix.length === 0 || matrix[0].length === 0) {
+                showError('Please enter a valid matrix');
+                return;
+            }
+            
+            // Show loading, hide other sections
+            document.getElementById('loading').style.display = 'flex';
+            document.getElementById('results').style.display = 'none';
+            document.getElementById('error').style.display = 'none';
+            document.getElementById('initial-placeholder').style.display = 'none';
+            document.getElementById('steps-container').innerHTML = '<p class="text-muted text-center py-3">Calculating steps...</p>';
+            
+            // Send to server
+            fetch('/calculate', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ matrix: matrix })
+            })
+            .then(response => response.json())
+            .then(data => {
+                document.getElementById('loading').style.display = 'none';
+                
+                if (data.success) {
+                    displayResults(data);
+                    displaySteps(data);
+                } else {
+                    showError(data.error);
+                }
+            })
+            .catch(error => {
+                document.getElementById('loading').style.display = 'none';
+                showError('Network error: ' + error.message);
+            });
+        }
+
+        function showError(message) {
+            const errorDiv = document.getElementById('error');
+            errorDiv.textContent = message;
+            errorDiv.style.display = 'block';
+            
+            // Show placeholder again
+            document.getElementById('initial-placeholder').style.display = 'block';
+        }
+
+        function displayResults(data) {
+            const resultsDiv = document.getElementById('results');
+            let html = '';
+            
+            // Show balanced matrix if it was balanced
+            if (data.original_rows !== data.balanced_size || data.original_cols !== data.balanced_size) {
+                html += `<div class="alert alert-info">
+                    <strong>Note:</strong> Matrix balanced from ${data.original_rows}×${data.original_cols} to ${data.balanced_size}×${data.balanced_size}
+                </div>`;
+            }
+            
+            // Show reduction steps summary
+            html += `<h5>Reduction Steps:</h5>`;
+            html += `<div class="row mb-3">`;
+            html += `<div class="col-md-6">`;
+            html += `<h6>Row Reduction:</h6>`;
+            data.row_reduction.forEach(step => {
+                html += `<div class="step-box"><small>${step}</small></div>`;
+            });
+            html += `</div>`;
+            html += `<div class="col-md-6">`;
+            html += `<h6>Column Reduction:</h6>`;
+            data.col_reduction.forEach(step => {
+                html += `<div class="step-box"><small>${step}</small></div>`;
+            });
+            html += `</div>`;
+            html += `</div>`;
+            
+            // Show final assignment
+            html += `<div class="mt-4 p-3 bg-light rounded">`;
+            html += `<h5 class="mb-3"><i class="fas fa-check-circle text-success me-2"></i>Optimal Assignment:</h5>`;
+            
+            if (data.assignment.length === 0) {
+                html += `<p class="text-danger">No valid assignment found!</p>`;
+            } else {
+                data.assignment.forEach(assign => {
+                    html += `<div class="assignment-item d-flex justify-content-between align-items-center">
+                        <div>
+                            <i class="fas fa-user-tie me-2"></i>Driver ${assign.driver} 
+                            <i class="fas fa-arrow-right mx-3"></i>
+                            <i class="fas fa-route me-2"></i>Route ${assign.route}
+                        </div>
+                        <span class="cost-badge">Rs. ${assign.cost.toFixed(2)}</span>
+                    </div>`;
+                });
+                
+                html += `<div class="mt-4 text-center">
+                    <h4 class="text-primary">
+                        Total Minimum Delivery Cost: 
+                        <span class="cost-badge px-4 py-2">Rs. ${data.total_cost.toFixed(2)}</span>
+                    </h4>
+                </div>`;
+            }
+            html += `</div>`;
+            
+            resultsDiv.innerHTML = html;
+            resultsDiv.style.display = 'block';
+        }
+
+        function displaySteps(data) {
+            const container = document.getElementById('steps-container');
+            
+            if (data.steps.length === 0) {
+                container.innerHTML = '<p class="text-muted text-center py-3">No steps to display</p>';
+                return;
+            }
+            
+            let html = '';
+            
+            // Create tabs for each step
+            html += `<ul class="nav nav-pills mb-3" id="stepTabs" role="tablist">`;
+            data.steps.forEach((step, index) => {
+                const active = index === 0 ? 'active' : '';
+                html += `<li class="nav-item" role="presentation">
+                    <button class="nav-link ${active}" id="step-${step.iteration}-tab" data-bs-toggle="pill" 
+                            data-bs-target="#step-${step.iteration}" type="button" role="tab">
+                        Step ${step.iteration}
+                    </button>
+                </li>`;
+            });
+            html += `</ul>`;
+            
+            html += `<div class="tab-content" id="stepTabsContent">`;
+            
+            data.steps.forEach((step, index) => {
+                const active = index === 0 ? 'show active' : '';
+                html += `<div class="tab-pane fade ${active}" id="step-${step.iteration}" role="tabpanel">`;
+                html += `<div class="step-box">`;
+                
+                if (step.message) {
+                    html += `<div class="alert alert-success mb-3">${step.message}</div>`;
+                }
+                
+                // Display matrix
+                html += `<h6>Matrix:</h6>`;
+                html += `<div class="table-responsive">`;
+                html += `<table class="table table-bordered matrix-table">`;
+                
+                for (let i = 0; i < step.matrix.length; i++) {
+                    html += '<tr>';
+                    for (let j = 0; j < step.matrix[i].length; j++) {
+                        let cellClass = '';
+                        let cellContent = step.matrix[i][j].toFixed(2);
+                        
+                        if (step.starred[i][j]) cellClass = 'starred-cell';
+                        if (step.row_cov[i]) cellClass += ' covered-row';
+                        if (step.col_cov[j]) cellClass += ' covered-col';
+                        
+                        if (step.primed && step.primed[0] === i && step.primed[1] === j) {
+                            cellClass = 'primed-cell';
+                            cellContent = '0.00*';
+                        }
+                        
+                        html += `<td class="${cellClass}">${cellContent}</td>`;
+                    }
+                    html += '</tr>';
+                }
+                html += `</table>`;
+                html += `</div>`;
+                
+                if (step.path_labels && step.path_labels.length > 0) {
+                    html += `<p class="mt-2"><strong>Augmenting Path:</strong> ${step.path_labels.join(' → ')}</p>`;
+                }
+                
+                if (step.adjustment) {
+                    html += `<div class="alert alert-warning mt-3">
+                        <strong>Matrix Adjustment:</strong> Minimum uncovered value = ${step.adjustment.min_value}
+                    </div>`;
+                }
+                
+                html += `</div></div>`;
+            });
+            
+            html += `</div>`;
+            
+            container.innerHTML = html;
+        }
+    </script>
+</body>
+</html>
