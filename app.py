@@ -168,28 +168,13 @@ def main():
     delivery drivers to routes, minimizing total delivery cost.
     """)
     
-    # Sidebar for inputs
-    with st.sidebar:
-        st.header("📊 Input Parameters")
-        
-        st.subheader("Method 1: Manual Matrix Input")
-        rows = st.number_input("Number of Delivery Drivers", min_value=1, max_value=10, value=3, step=1)
-        cols = st.number_input("Number of Delivery Routes", min_value=1, max_value=10, value=3, step=1)
-        
-        st.markdown("---")
-        st.subheader("Method 2: Example Matrices")
-        example_choice = st.selectbox(
-            "Choose an example matrix",
-            ["Select an example", "Small (3x3)", "Medium (4x4)", "Large (5x5)", "Unbalanced (3x4)"]
-        )
-        
-        st.markdown("---")
-        st.subheader("Algorithm Settings")
-        show_steps = st.checkbox("Show Detailed Steps", value=True)
-    
-    # Initialize session state for matrix
+    # Initialize session state
     if 'cost_matrix' not in st.session_state:
-        st.session_state.cost_matrix = np.zeros((rows, cols))
+        st.session_state.cost_matrix = np.zeros((3, 3))
+    if 'rows' not in st.session_state:
+        st.session_state.rows = 3
+    if 'cols' not in st.session_state:
+        st.session_state.cols = 3
     
     # Example matrices
     example_matrices = {
@@ -218,51 +203,110 @@ def main():
         ])
     }
     
-    # Matrix input
+    # Sidebar for inputs
+    with st.sidebar:
+        st.header("📊 Input Parameters")
+        
+        st.subheader("Method 1: Manual Matrix Input")
+        
+        # Get current matrix shape for default values
+        current_rows, current_cols = st.session_state.cost_matrix.shape
+        
+        rows = st.number_input(
+            "Number of Delivery Drivers", 
+            min_value=1, 
+            max_value=10, 
+            value=st.session_state.rows,
+            step=1,
+            key="rows_input"
+        )
+        
+        cols = st.number_input(
+            "Number of Delivery Routes", 
+            min_value=1, 
+            max_value=10, 
+            value=st.session_state.cols,
+            step=1,
+            key="cols_input"
+        )
+        
+        # Update button
+        if st.button("Update Matrix Size", type="secondary", use_container_width=True):
+            if rows != st.session_state.rows or cols != st.session_state.cols:
+                st.session_state.rows = rows
+                st.session_state.cols = cols
+                # Resize matrix
+                new_matrix = np.zeros((rows, cols))
+                old_rows, old_cols = st.session_state.cost_matrix.shape
+                min_rows = min(rows, old_rows)
+                min_cols = min(cols, old_cols)
+                new_matrix[:min_rows, :min_cols] = st.session_state.cost_matrix[:min_rows, :min_cols]
+                st.session_state.cost_matrix = new_matrix
+                st.rerun()
+        
+        st.markdown("---")
+        st.subheader("Method 2: Example Matrices")
+        example_choice = st.selectbox(
+            "Choose an example matrix",
+            ["Select an example", "Small (3x3)", "Medium (4x4)", "Large (5x5)", "Unbalanced (3x4)"],
+            key="example_selector"
+        )
+        
+        # Handle example selection
+        if example_choice != "Select an example":
+            example_matrix = example_matrices[example_choice]
+            example_rows, example_cols = example_matrix.shape
+            
+            if st.button(f"Load {example_choice}", type="primary", use_container_width=True):
+                st.session_state.cost_matrix = example_matrix
+                st.session_state.rows = example_rows
+                st.session_state.cols = example_cols
+                st.rerun()
+        
+        st.markdown("---")
+        st.subheader("Algorithm Settings")
+        show_steps = st.checkbox("Show Detailed Steps", value=True)
+    
+    # Display current matrix size
+    st.info(f"Current matrix size: **{st.session_state.rows} drivers × {st.session_state.cols} routes**")
+    
+    # Matrix input section
     st.header("📝 Delivery Cost Matrix")
-    
-    # Handle example selection
-    if example_choice != "Select an example":
-        example_matrix = example_matrices[example_choice]
-        rows, cols = example_matrix.shape
-        st.session_state.cost_matrix = example_matrix
-        st.info(f"Loaded {example_choice} example matrix")
-    
-    # Create editable matrix
     st.write("Enter delivery costs (in Rupees):")
     
     # Create input grid
     input_data = []
-    for i in range(rows):
+    for i in range(st.session_state.rows):
         cols_list = []
-        cols_container = st.columns(cols)
-        for j in range(cols):
+        cols_container = st.columns(st.session_state.cols)
+        for j in range(st.session_state.cols):
             with cols_container[j]:
-                if example_choice != "Select an example" and i < example_matrix.shape[0] and j < example_matrix.shape[1]:
-                    default_val = float(example_matrix[i, j])
-                else:
-                    default_val = float(st.session_state.cost_matrix[i, j]) if i < st.session_state.cost_matrix.shape[0] and j < st.session_state.cost_matrix.shape[1] else 0.0
+                # Get current value from session state
+                current_val = 0.0
+                if i < st.session_state.cost_matrix.shape[0] and j < st.session_state.cost_matrix.shape[1]:
+                    current_val = float(st.session_state.cost_matrix[i, j])
                 
+                # Create input field
                 val = cols_container[j].number_input(
                     f"D{i+1}R{j+1}",
                     min_value=0.0,
                     max_value=10000.0,
-                    value=default_val,
-                    step=50.0,
-                    key=f"cell_{i}_{j}"
+                    value=current_val,
+                    step=10.0,
+                    key=f"cell_{i}_{j}_{st.session_state.rows}_{st.session_state.cols}"  # Unique key
                 )
                 cols_list.append(val)
         input_data.append(cols_list)
     
-    # Update session state
+    # Update session state with input values
     st.session_state.cost_matrix = np.array(input_data)
     
     # Display the matrix
     st.subheader("Current Delivery Cost Matrix")
     df = pd.DataFrame(
         st.session_state.cost_matrix,
-        index=[f"Driver {i+1}" for i in range(rows)],
-        columns=[f"Route {j+1}" for j in range(cols)]
+        index=[f"Driver {i+1}" for i in range(st.session_state.rows)],
+        columns=[f"Route {j+1}" for j in range(st.session_state.cols)]
     )
     st.dataframe(df.style.format("{:.2f}"), use_container_width=True)
     
@@ -270,10 +314,17 @@ def main():
     st.subheader("Visual Representation")
     fig_data = pd.DataFrame(
         st.session_state.cost_matrix,
-        index=[f"D{i+1}" for i in range(rows)],
-        columns=[f"R{j+1}" for j in range(cols)]
+        index=[f"D{i+1}" for i in range(st.session_state.rows)],
+        columns=[f"R{j+1}" for j in range(st.session_state.cols)]
     )
-    st.bar_chart(fig_data.T if rows >= cols else fig_data)
+    st.bar_chart(fig_data.T if st.session_state.rows >= st.session_state.cols else fig_data)
+    
+    # Clear button
+    col1, col2, col3 = st.columns(3)
+    with col2:
+        if st.button("Clear Matrix", type="secondary", use_container_width=True):
+            st.session_state.cost_matrix = np.zeros((st.session_state.rows, st.session_state.cols))
+            st.rerun()
     
     # Run algorithm button
     if st.button("🚀 Find Optimal Assignment", type="primary", use_container_width=True):
@@ -310,78 +361,75 @@ def main():
                     cost = st.session_state.cost_matrix[r, c]
                     total_cost += cost
                     results.append({
-                        "Driver": f"D{r+1}",
-                        "Route": f"R{c+1}",
+                        "Driver": f"Driver {r+1}",
+                        "Route": f"Route {c+1}",
                         "Cost (Rs.)": f"{cost:.2f}"
                     })
             
             # Display assignment as a table
-            results_df = pd.DataFrame(results)
-            st.table(results_df)
-            
-            # Display total cost
-            st.metric("💰 Total Minimum Delivery Cost", f"Rs. {total_cost:.2f}")
-            
-            # Show assignment matrix
-            st.subheader("Assignment Matrix")
-            assign_matrix = np.zeros((original_rows, original_cols))
-            for r, c in assignment:
-                if r < original_rows and c < original_cols:
-                    assign_matrix[r, c] = 1
-            
-            assign_df = pd.DataFrame(
-                assign_matrix,
-                index=[f"Driver {i+1}" for i in range(original_rows)],
-                columns=[f"Route {j+1}" for j in range(original_cols)]
-            )
-            st.dataframe(assign_df.style.format("{:.0f}"), use_container_width=True)
+            if results:
+                results_df = pd.DataFrame(results)
+                st.table(results_df)
+                
+                # Display total cost
+                st.metric("💰 Total Minimum Delivery Cost", f"Rs. {total_cost:.2f}")
+                
+                # Show assignment matrix
+                st.subheader("Assignment Matrix")
+                assign_matrix = np.zeros((original_rows, original_cols))
+                for r, c in assignment:
+                    if r < original_rows and c < original_cols:
+                        assign_matrix[r, c] = 1
+                
+                assign_df = pd.DataFrame(
+                    assign_matrix,
+                    index=[f"Driver {i+1}" for i in range(original_rows)],
+                    columns=[f"Route {j+1}" for j in range(original_cols)]
+                )
+                st.dataframe(assign_df.style.format("{:.0f}"), use_container_width=True)
+            else:
+                st.warning("No valid assignments found.")
         
         with tab2:
             if show_steps:
                 # Display the algorithm steps
                 st.subheader("Algorithm Steps")
                 
-                # Create an expandable container for each major step
-                current_section = ""
-                section_content = []
-                
-                for log_entry in logs:
-                    if "=====" in log_entry:
-                        # Save previous section
-                        if current_section and section_content:
-                            with st.expander(current_section, expanded=True):
-                                for content in section_content:
-                                    if content.strip():
-                                        if "Matrix after" in content or "Starred matrix" in content or content.strip().startswith("[[") or content.strip().startswith("["):
-                                            # Try to parse as numpy array
-                                            try:
-                                                lines = content.strip().split('\n')
-                                                if len(lines) > 1:
-                                                    for line in lines:
-                                                        if line.strip():
-                                                            st.code(line)
-                                                else:
-                                                    st.code(content)
-                                            except:
+                # Create a container for logs
+                log_container = st.container()
+                with log_container:
+                    # Process and display logs
+                    current_section = ""
+                    section_content = []
+                    
+                    for log_entry in logs:
+                        if "=====" in log_entry:
+                            # Display previous section if exists
+                            if current_section and section_content:
+                                with st.expander(current_section, expanded=True):
+                                    for content in section_content:
+                                        if content.strip():
+                                            # Check if it looks like a matrix
+                                            if "Matrix after" in content or "Starred matrix" in content or content.strip().startswith("[[") or "[" in content:
+                                                st.code(content)
+                                            else:
                                                 st.text(content)
-                                        else:
-                                            st.text(content)
-                        
-                        # Start new section
-                        current_section = log_entry.replace("=", "").strip()
-                        section_content = []
-                    else:
-                        section_content.append(log_entry)
-                
-                # Display the last section
-                if current_section and section_content:
-                    with st.expander(current_section, expanded=True):
-                        for content in section_content:
-                            if content.strip():
-                                if "Matrix after" in content or "Starred matrix" in content or content.strip().startswith("[[") or content.strip().startswith("["):
-                                    st.code(content)
-                                else:
-                                    st.text(content)
+                            
+                            # Start new section
+                            current_section = log_entry.replace("=", "").strip()
+                            section_content = []
+                        else:
+                            section_content.append(log_entry)
+                    
+                    # Display the last section
+                    if current_section and section_content:
+                        with st.expander(current_section, expanded=True):
+                            for content in section_content:
+                                if content.strip():
+                                    if "Matrix after" in content or "Starred matrix" in content or content.strip().startswith("[[") or "[" in content:
+                                        st.code(content)
+                                    else:
+                                        st.text(content)
             else:
                 st.info("Enable 'Show Detailed Steps' in the sidebar to see the algorithm steps.")
         
@@ -389,50 +437,53 @@ def main():
             st.subheader("Assignment Visualization")
             
             # Create a simple visualization
-            import matplotlib.pyplot as plt
-            
-            fig, ax = plt.subplots(figsize=(10, 6))
-            
-            # Create nodes
-            driver_nodes = [f"D{i+1}" for i in range(original_rows)]
-            route_nodes = [f"R{j+1}" for j in range(original_cols)]
-            
-            # Plot nodes
-            for i, driver in enumerate(driver_nodes):
-                ax.scatter(0, i, s=500, c='blue', alpha=0.7, edgecolors='black')
-                ax.text(0, i, driver, ha='center', va='center', fontsize=12, color='white', fontweight='bold')
-            
-            for j, route in enumerate(route_nodes):
-                ax.scatter(1, j, s=500, c='green', alpha=0.7, edgecolors='black')
-                ax.text(1, j, route, ha='center', va='center', fontsize=12, color='white', fontweight='bold')
-            
-            # Plot assignments
-            assigned_pairs = []
-            for r, c in assignment:
-                if r < original_rows and c < original_cols:
-                    cost = st.session_state.cost_matrix[r, c]
-                    assigned_pairs.append((r, c, cost))
-                    
-                    # Draw line
-                    ax.plot([0, 1], [r, c], 'r-', linewidth=2, alpha=0.7)
-                    
-                    # Add cost label
-                    mid_x, mid_y = 0.5, (r + c) / 2
-                    ax.text(mid_x, mid_y, f"Rs.{cost:.0f}", 
-                           ha='center', va='center', 
-                           backgroundcolor='white',
-                           fontsize=10,
-                           bbox=dict(boxstyle="round,pad=0.3", facecolor="white", alpha=0.8))
-            
-            ax.set_xlim(-0.5, 1.5)
-            ax.set_ylim(-0.5, max(original_rows, original_cols) - 0.5)
-            ax.set_xticks([0, 1])
-            ax.set_xticklabels(['Drivers', 'Routes'])
-            ax.set_yticks([])
-            ax.set_title('Optimal Driver-Route Assignment', fontsize=14, fontweight='bold')
-            ax.grid(True, alpha=0.3)
-            
-            st.pyplot(fig)
+            try:
+                import matplotlib.pyplot as plt
+                
+                fig, ax = plt.subplots(figsize=(10, 6))
+                
+                # Create nodes
+                driver_nodes = [f"D{i+1}" for i in range(original_rows)]
+                route_nodes = [f"R{j+1}" for j in range(original_cols)]
+                
+                # Plot nodes
+                for i, driver in enumerate(driver_nodes):
+                    ax.scatter(0, i, s=500, c='blue', alpha=0.7, edgecolors='black')
+                    ax.text(0, i, driver, ha='center', va='center', fontsize=12, color='white', fontweight='bold')
+                
+                for j, route in enumerate(route_nodes):
+                    ax.scatter(1, j, s=500, c='green', alpha=0.7, edgecolors='black')
+                    ax.text(1, j, route, ha='center', va='center', fontsize=12, color='white', fontweight='bold')
+                
+                # Plot assignments
+                assigned_pairs = []
+                for r, c in assignment:
+                    if r < original_rows and c < original_cols:
+                        cost = st.session_state.cost_matrix[r, c]
+                        assigned_pairs.append((r, c, cost))
+                        
+                        # Draw line
+                        ax.plot([0, 1], [r, c], 'r-', linewidth=2, alpha=0.7)
+                        
+                        # Add cost label
+                        mid_x, mid_y = 0.5, (r + c) / 2
+                        ax.text(mid_x, mid_y, f"Rs.{cost:.0f}", 
+                               ha='center', va='center', 
+                               backgroundcolor='white',
+                               fontsize=10,
+                               bbox=dict(boxstyle="round,pad=0.3", facecolor="white", alpha=0.8))
+                
+                ax.set_xlim(-0.5, 1.5)
+                ax.set_ylim(-0.5, max(original_rows, original_cols) - 0.5)
+                ax.set_xticks([0, 1])
+                ax.set_xticklabels(['Drivers', 'Routes'])
+                ax.set_yticks([])
+                ax.set_title('Optimal Driver-Route Assignment', fontsize=14, fontweight='bold')
+                ax.grid(True, alpha=0.3)
+                
+                st.pyplot(fig)
+            except Exception as e:
+                st.error(f"Could not generate visualization: {e}")
     
     # Footer
     st.markdown("---")
@@ -448,6 +499,21 @@ def main():
     - The algorithm automatically balances the matrix if drivers ≠ routes
     - Dummy drivers/routes are assigned zero cost
     """)
+    
+    # Add download button for matrix
+    st.sidebar.markdown("---")
+    st.sidebar.subheader("Export/Import")
+    
+    # Export matrix as CSV
+    if st.sidebar.button("Export Matrix as CSV", use_container_width=True):
+        csv = df.to_csv()
+        st.sidebar.download_button(
+            label="Download CSV",
+            data=csv,
+            file_name="delivery_matrix.csv",
+            mime="text/csv",
+            use_container_width=True
+        )
 
 if __name__ == "__main__":
     main()
